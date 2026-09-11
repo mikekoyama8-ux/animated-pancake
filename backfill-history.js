@@ -29,25 +29,32 @@ async function backfillBase(base) {
   const dates = Object.keys(data.rates || {});
   console.log(`  ${dates.length} days returned for ${base}`);
 
-  // Insert in reasonably sized batches rather than one row per round-trip.
+  // Commit every BATCH_SIZE days instead of one giant transaction for the
+  // whole currency — a single multi-decade transaction can exhaust
+  // Postgres's shared lock-tracking memory on a small instance.
+  const BATCH_SIZE = 250;
   const client = await pool.connect();
   let inserted = 0;
   try {
-    await client.query("BEGIN");
-    for (const date of dates) {
-      const ts = new Date(`${date}T00:00:00Z`);
-      const dayRates = data.rates[date];
-      for (const [quote, rate] of Object.entries(dayRates)) {
-        const result = await client.query(
-          `INSERT INTO fx_rates (ts, base_ccy, quote_ccy, rate, source)
-           VALUES ($1, $2, $3, $4, 'frankfurter')
-           ON CONFLICT (ts, base_ccy, quote_ccy, source) DO NOTHING`,
-          [ts, base, quote, rate]
-        );
-        inserted += result.rowCount;
+    for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+      const batch = dates.slice(i, i + BATCH_SIZE);
+      await client.query("BEGIN");
+      for (const date of batch) {
+        const ts = new Date(`${date}T00:00:00Z`);
+        const dayRates = data.rates[date];
+        for (const [quote, rate] of Object.entries(dayRates)) {
+          const result = await client.query(
+            `INSERT INTO fx_rates (ts, base_ccy, quote_ccy, rate, source)
+             VALUES ($1, $2, $3, $4, 'frankfurter')
+             ON CONFLICT (ts, base_ccy, quote_ccy, source) DO NOTHING`,
+            [ts, base, quote, rate]
+          );
+          inserted += result.rowCount;
+        }
       }
+      await client.query("COMMIT");
+      console.log(`    ...committed through ${batch[batch.length - 1]}`);
     }
-    await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

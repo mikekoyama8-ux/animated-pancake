@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fx
+      POSTGRES_USER: fx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fx_local_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fx_db_data:/var/lib/postgresql/data
+      # Runs automatically on first boot only (Postgres init-db convention).
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fx -d fx"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    command: ["node", "server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://fx:${POSTGRES_PASSWORD:-fx_local_dev}@db:5432/fx
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Polls Twelve Data every 60s. Split into its own container so it can be
+  # restarted or scaled independently of the API.
+  worker-intraday:
+    build: .
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do node fetch-rates.js intraday; sleep 60; done"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://fx:${POSTGRES_PASSWORD:-fx_local_dev}@db:5432/fx
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Pulls the Frankfurter daily close once every 24h.
+  worker-daily:
+    build: .
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do node fetch-rates.js daily; sleep 86400; done"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://fx:${POSTGRES_PASSWORD:-fx_local_dev}@db:5432/fx
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  fx_db_data:

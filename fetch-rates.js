@@ -10,12 +10,17 @@
 
 import pg from "pg";
 
-const BASE_CURRENCIES = [
+const DAILY_CURRENCIES = [
   "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY",
   "BGN", "BRL", "CZK", "DKK", "HKD", "HUF", "IDR", "ILS", "INR", "ISK",
   "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "RON", "SEK", "SGD",
   "THB", "TRY", "ZAR",
 ];
+// Twelve Data's free tier can't sustain a 930-pair request every 60s (31×30
+// currencies). Intraday polling stays scoped to the 8 majors, which is what
+// "live" actually needs to feel meaningful for — the other 23 still get a
+// real, current rate once a day from Frankfurter via fetchDaily().
+const INTRADAY_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"];
 const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
 
 const pool = new pg.Pool({
@@ -23,8 +28,8 @@ const pool = new pg.Pool({
 });
 
 async function fetchDaily() {
-  for (const base of BASE_CURRENCIES) {
-    const others = BASE_CURRENCIES.filter((c) => c !== base).join(",");
+  for (const base of DAILY_CURRENCIES) {
+    const others = DAILY_CURRENCIES.filter((c) => c !== base).join(",");
     const res = await fetch(`https://api.frankfurter.app/latest?from=${base}&to=${others}`);
     const data = await res.json();
     const ts = new Date();
@@ -45,8 +50,8 @@ async function fetchIntraday() {
     return;
   }
   const pairs = [];
-  for (const base of BASE_CURRENCIES) {
-    for (const quote of BASE_CURRENCIES) {
+  for (const base of INTRADAY_CURRENCIES) {
+    for (const quote of INTRADAY_CURRENCIES) {
       if (base !== quote) pairs.push(`${base}/${quote}`);
     }
   }

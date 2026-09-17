@@ -30,3 +30,10 @@ SELECT
     last(rate, ts) AS close_rate
 FROM fx_rates
 GROUP BY day, base_ccy, quote_ccy;
+
+-- Email signups from the landing page.
+CREATE TABLE IF NOT EXISTS email_signups (
+    id            SERIAL PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    signed_up_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

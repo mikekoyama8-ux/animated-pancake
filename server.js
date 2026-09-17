@@ -12,6 +12,7 @@ import "dotenv/config";
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -107,6 +108,28 @@ app.get("/api/calendar", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "failed to load calendar" });
+  }
+});
+
+// POST /api/subscribe — stores an email signup from the landing page.
+// Body: { "email": "someone@example.com" }
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+app.post("/api/subscribe", async (req, res) => {
+  const email = (req.body && req.body.email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: "invalid email" });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO email_signups (email, signed_up_at)
+       VALUES ($1, now())
+       ON CONFLICT (email) DO NOTHING`,
+      [email]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "failed to save signup" });
   }
 });
 

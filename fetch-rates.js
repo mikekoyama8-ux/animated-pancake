@@ -10,7 +10,12 @@
 
 import pg from "pg";
 
-const BASE_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"];
+const BASE_CURRENCIES = [
+  "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY",
+  "BGN", "BRL", "CZK", "DKK", "HKD", "HUF", "IDR", "ILS", "INR", "ISK",
+  "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "RON", "SEK", "SGD",
+  "THB", "TRY", "ZAR",
+];
 const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
 
 const pool = new pg.Pool({

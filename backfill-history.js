@@ -10,7 +10,12 @@
 import pg from "pg";
 import "dotenv/config";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY"];
+const CURRENCIES = [
+  "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "CNY",
+  "BGN", "BRL", "CZK", "DKK", "HKD", "HUF", "IDR", "ILS", "INR", "ISK",
+  "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "RON", "SEK", "SGD",
+  "THB", "TRY", "ZAR",
+];
 const ECB_START_DATE = "1999-01-04"; // earliest date Frankfurter/ECB has data for
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
